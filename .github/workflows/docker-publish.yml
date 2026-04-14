@@ -10,7 +10,7 @@ on:
 env:
   REGISTRY: ghcr.io
   # 这里改成你想要的镜像名称（格式：用户名/镜像名）
-  IMAGE_NAME: xiamiao/my-app-nginx
+  IMAGE_NAME: jiangxiamiao/my-app
   # GitOps 仓库 SSH 地址
   GITOPS_REPO: git@github.com:jiangxiamiao/my-app-deploy.git
 
