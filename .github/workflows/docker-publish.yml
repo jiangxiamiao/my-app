@@ -1,76 +1,66 @@
 name: Build and Publish Docker Image
 
-on:  
-  push:  
-    branches: [ "main" ]    # 推送到 main 分支时触发  
-    tags: [ 'v*.*.*' ]   # 推送 v1.0.0 格式 tag 时触发  
-  pull\_request:  
-    branches: [ "main" ]   # PR 时只构建不推送
+on:
+  push:
+    branches: [ "main" ]
+    tags: [ 'v*.*.*' ]
+  pull_request:
+    branches: [ "main" ]
 
-env:  
-  # GitHub Container Registry 配置  
-  REGISTRY_GHCR: ghcr.io  
-  IMAGE_NAME_GHCR: ${{ github.repository }}  
-  # Docker Hub 配置 (格式：用户名/项目名)  
-  IMAGE_NAME_DOCKERHUB: ${{ secrets.DOCKERHUB_USERNAME }}/nanodoc 
+env:
+  REGISTRY_GHCR: ghcr.io
+  IMAGE_NAME_GHCR: ${{ github.repository }}
+  IMAGE_NAME_DOCKERHUB: ${{ secrets.DOCKERHUB_USERNAME }}/nanodoc
 
-jobs:  
-  build-and-push:  
-    runs-on: ubuntu-latest  
-    permissions:  
-      contents: read  
-      packages: write # 允许写入 GitHub Packages
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
 
-    steps:  
-      # 1. 检出代码  
-      - name: Checkout repository  
+    steps:
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 2. 设置 Docker 构建环境  
-      - name: Set up Docker Buildx  
+      - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      # 3. 登录 GitHub Container Registry  
-      - name: Log into ghcr.io  
-        if: github.event_name != 'pull_request'  
-        uses: docker/login-action@v3  
-        with:  
-          registry: ${{ env.REGISTRY_GHCR }}  
-          username: ${{ github.actor }}  
-          password: ${{ secrets.GITHUB_TOKEN }} # GitHub 自带 Token
+      - name: Log into ghcr.io
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY_GHCR }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-      # 4. 登录 Docker Hub (使用 Secrets)  
-      - name: Log into Docker Hub  
-        if: github.event_name != 'pull_request'  
-        uses: docker/login-action@v3  
-        with:  
-          username: ${{ secrets.DOCKERHUB_USERNAME }}  
+      - name: Log into Docker Hub
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      # 5. 提取元数据 (自动生成 Tags)  
-      # 这步非常关键，它会同时为两个 Registry 生成对应的 tags  
-      - name: Extract Docker metadata  
-        id: meta  
-        uses: docker/metadata-action@v5  
-        with:  
-          images: |  
-            ${{ env.REGISTRY_GHCR }}/${{ env.IMAGE_NAME_GHCR }}  
-            ${{ env.IMAGE_NAME_DOCKERHUB }}  
-          tags: |  
-            type=semver,pattern={{version}}  
-            type=ref,event=branch  
+      - name: Extract Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: |
+            ${{ env.REGISTRY_GHCR }}/${{ env.IMAGE_NAME_GHCR }}
+            ${{ env.IMAGE_NAME_DOCKERHUB }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=ref,event=branch
             type=raw,value=latest,enable={{is_default_branch}}
 
-      # 6. 构建并推送  
-      - name: Build and push Docker image  
-        id: build-and-push  
-        uses: docker/build-push-action@v5  
-        with:  
-          context: .  
-          file: ./Dockerfile  
-          push: ${{ github.event_name != 'pull_request' }}  
-          tags: ${{ steps.meta.outputs.tags }}  
-          labels: ${{ steps.meta.outputs.labels }}  
-          cache-from: type=gha # 使用 GitHub Actions 缓存加速  
+      - name: Build and push Docker image
+        id: build-and-push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
           cache-to: type=gha,mode=max
-
