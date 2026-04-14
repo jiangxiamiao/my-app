@@ -75,7 +75,7 @@ jobs:
           cd gitops-repo
           NEW_TAG="${{ github.sha }}"
           # 替换镜像行，支持 ghcr.io/xiamiao/my-app 或 docker.io/xiamiao/my-app
-          sed -i "s|image: .*|image: ghcr.io/jiangxiamiao/my-app:${NEW_TAG}|g" nginx-deployment.yaml
+          sed -i "s|image: .*|image: docker.io/xiamiao/my-app:${NEW_TAG}|g" nginx-deployment.yaml
           cat nginx-deployment.yaml
 
       - name: Commit and push changes
