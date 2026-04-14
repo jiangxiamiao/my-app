@@ -9,8 +9,10 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
-  GITOPS_REPO: git@github.com:jiangxiamiao/my-app-deploy.git   # 替换为你的 GitOps 仓库 SSH 地址
+  # 这里改成你想要的镜像名称（格式：用户名/镜像名）
+  IMAGE_NAME: xiamiao/my-app-nginx
+  # GitOps 仓库 SSH 地址
+  GITOPS_REPO: git@github.com:jiangxiamiao/my-app-deploy.git
 
 jobs:
   build-and-push:
@@ -18,11 +20,14 @@ jobs:
     permissions:
       contents: read
       packages: write
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
+
       - name: Log into ghcr.io
         if: github.event_name != 'pull_request'
         uses: docker/login-action@v3
@@ -30,6 +35,7 @@ jobs:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Extract Docker metadata
         id: meta
         uses: docker/metadata-action@v5
@@ -38,8 +44,9 @@ jobs:
           tags: |
             type=semver,pattern={{version}}
             type=ref,event=branch
-            type=sha,format=short   # 生成短 commit SHA 作为标签，例如 2f18d4d
+            type=sha,format=short
             type=raw,value=latest,enable={{is_default_branch}}
+
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
@@ -49,6 +56,7 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
   update-gitops:
     runs-on: ubuntu-latest
     needs: build-and-push
@@ -60,20 +68,21 @@ jobs:
           ssh-private-key: ${{ secrets.GITOPS_SSH_PRIVATE_KEY }}
 
       - name: Clone GitOps repository
-        run: git clone git@github.com:jiangxiamiao/my-app-deploy.git gitops-repo
+        run: git clone ${{ env.GITOPS_REPO }} gitops-repo
 
-      - name: Update image tag in nginx-deployment.yaml
+      - name: Update image tag in nginx-deployment.YAML
         run: |
           cd gitops-repo
           NEW_TAG="${{ github.sha }}"
-          sed -i "s|image: ghcr.io/jiangxiamiao/my-app:.*|image: ghcr.io/jiangxiamiao/my-app:${NEW_TAG}|g" nginx-deployment.yaml
-          cat nginx-deployment.yaml 
+          # 替换镜像行，支持 ghcr.io/xiamiao/my-app 或 docker.io/xiamiao/my-app
+          sed -i "s|image: .*/${{ env.IMAGE_NAME }}:.*|image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${NEW_TAG}|g" nginx-deployment.YAML
+          cat nginx-deployment.YAML
 
       - name: Commit and push changes
         run: |
           cd gitops-repo
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add nginx-deployment.yaml
+          git add nginx-deployment.YAML
           git diff --staged --quiet || git commit -m "Update image to ${{ github.sha }} [skip ci]"
           git push
