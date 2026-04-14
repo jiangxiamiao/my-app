@@ -68,7 +68,6 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-
   update-gitops:
     runs-on: ubuntu-latest
     needs: build-and-push
@@ -85,9 +84,12 @@ jobs:
       - name: Update image tag in nginx-deployment.yaml
         run: |
           cd gitops-repo
-          NEW_TAG="${{ github.sha }}"
-          # 使用与构建一致的镜像地址（这里选择 ghcr.io 作为示例）
-          NEW_IMAGE="${{ env.REGISTRY_GHCR }}/${{ env.IMAGE_NAME_GHCR }}:${NEW_TAG}"
+          # 获取短 SHA（前7位），并加上 "sha-" 前缀，匹配实际推送的标签
+          SHORT_SHA=$(echo ${{ github.sha }} | cut -c1-7)
+          NEW_TAG="sha-${SHORT_SHA}"
+          # 使用 Docker Hub 镜像地址，假设你的用户名是 xiamiao（或从 secret 读取）
+          NEW_IMAGE="${{ secrets.DOCKERHUB_USERNAME }}/my-app:${NEW_TAG}"
+          # 替换 image 行
           sed -i "s|image: .*|image: ${NEW_IMAGE}|g" nginx-deployment.yaml
           cat nginx-deployment.yaml
 
@@ -97,5 +99,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add nginx-deployment.yaml
-          git diff --staged --quiet || git commit -m "Update image to ${{ github.sha }} [skip ci]"
+          git diff --staged --quiet || git commit -m "Update image to ${NEW_IMAGE} [skip ci]"
           git push
