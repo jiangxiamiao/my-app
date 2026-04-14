@@ -70,19 +70,19 @@ jobs:
       - name: Clone GitOps repository
         run: git clone ${{ env.GITOPS_REPO }} gitops-repo
 
-      - name: Update image tag in nginx-deployment.YAML
+      - name: Update image tag in nginx-deployment.yaml
         run: |
           cd gitops-repo
           NEW_TAG="${{ github.sha }}"
           # 替换镜像行，支持 ghcr.io/xiamiao/my-app 或 docker.io/xiamiao/my-app
-          sed -i "s|image: .*/${{ env.IMAGE_NAME }}:.*|image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${NEW_TAG}|g" nginx-deployment.YAML
-          cat nginx-deployment.YAML
+          sed -i "s|image: .*/${{ env.IMAGE_NAME }}:.*|image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${NEW_TAG}|g" nginx-deployment.yaml
+          cat nginx-deployment.yaml
 
       - name: Commit and push changes
         run: |
           cd gitops-repo
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add nginx-deployment.YAML
+          git add nginx-deployment.yaml
           git diff --staged --quiet || git commit -m "Update image to ${{ github.sha }} [skip ci]"
           git push
