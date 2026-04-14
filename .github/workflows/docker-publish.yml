@@ -8,11 +8,15 @@ on:
     branches: [ "main" ]
 
 env:
-  # GitHub Container Registry 配置  
-  REGISTRY_GHCR: ghcr.io  
-  IMAGE_NAME_GHCR: ${{ github.repository }}  
-  # Docker Hub 配置 (格式：用户名/项目名)  
-  IMAGE_NAME_DOCKERHUB: ${{ secrets.DOCKERHUB_USERNAME }}/my-app
+  # GitHub Container Registry
+  REGISTRY_GHCR: ghcr.io
+  IMAGE_NAME_GHCR: jiangxiamiao/my-app          # 你的 GitHub 用户名/仓库名
+  # Docker Hub
+  REGISTRY_DOCKER: docker.io
+  IMAGE_NAME_DOCKER: ${{ secrets.DOCKERHUB_USERNAME }}/my-app
+  # GitOps 仓库 SSH 地址
+  GITOPS_REPO: git@github.com:jiangxiamiao/my-app-deploy.git
+
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
@@ -31,11 +35,12 @@ jobs:
         if: github.event_name != 'pull_request'
         uses: docker/login-action@v3
         with:
-          registry: ${{ env.REGISTRY }}
+          registry: ${{ env.REGISTRY_GHCR }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      # ������ 在这里添加 Docker Hub 登录步骤
+
       - name: Log into Docker Hub
+        if: github.event_name != 'pull_request'
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
@@ -45,7 +50,9 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          images: |
+            ${{ env.REGISTRY_GHCR }}/${{ env.IMAGE_NAME_GHCR }}
+            ${{ env.REGISTRY_DOCKER }}/${{ env.IMAGE_NAME_DOCKER }}
           tags: |
             type=semver,pattern={{version}}
             type=ref,event=branch
@@ -79,8 +86,9 @@ jobs:
         run: |
           cd gitops-repo
           NEW_TAG="${{ github.sha }}"
-          # 替换镜像行，支持 ghcr.io/xiamiao/my-app 或 docker.io/xiamiao/my-app
-          sed -i "s|image: .*|image: docker.io/xiamiao/my-app:${NEW_TAG}|g" nginx-deployment.yaml
+          # 使用与构建一致的镜像地址（这里选择 ghcr.io 作为示例）
+          NEW_IMAGE="${{ env.REGISTRY_GHCR }}/${{ env.IMAGE_NAME_GHCR }}:${NEW_TAG}"
+          sed -i "s|image: .*|image: ${NEW_IMAGE}|g" nginx-deployment.yaml
           cat nginx-deployment.yaml
 
       - name: Commit and push changes
